@@ -5,6 +5,8 @@
   "Lua.diagnostics.globals": [
     "System",
     "Script",
-    "ScriptLoader"
+    "ScriptLoader",
+    "player",
+    "AudioUtils"
   ]
 }
