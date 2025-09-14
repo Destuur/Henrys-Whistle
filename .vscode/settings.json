@@ -1,0 +1,10 @@
+{
+  "Lua.workspace.library": [
+    "g:\\SteamLibrary\\steamapps\\common\\KingdomComeDeliverance2\\Mods\\_kcdutils\\Data\\kcdutils\\Scripts\\Mods"
+  ],
+  "Lua.diagnostics.globals": [
+    "System",
+    "Script",
+    "ScriptLoader"
+  ]
+}
