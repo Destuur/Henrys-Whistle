@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="us-ascii"?>
-<ATLConfig atl_name="special">
-	<AudioTriggers>
-		<ATLTrigger atl_name="henrys_whistle_roansong">
-			<FmodEvent fmod_id="123421234" fmod_name="event:/henrys_whistle/roansong" distance_culling="65535" osh_preset="-1" pausable="0" sword_mat="-1" sword_mat_opponent="-1" />
-		</ATLTrigger>
-	</AudioTriggers>
-</ATLConfig>

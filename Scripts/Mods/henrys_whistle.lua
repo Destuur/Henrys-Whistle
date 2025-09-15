@@ -18,54 +18,30 @@ HenrysWhistle = mod
 local log = HenrysWhistle.Logger
 local db = HenrysWhistle.DB
 local config = HenrysWhistle.Config
-
-local whistleSongs = {
-firstSong  = { "blacksmith_030","blacksmith_032","blacksmith_035","blacksmith_036" },
-secondSong = { "blacksmith_041","blacksmith_045","blacksmith_049","blacksmith_053" },
-thirdSong  = { "blacksmith_058","blacksmith_063","blacksmith_068","blacksmith_075" },
-fourthSong = { "blacksmith_mag_01","blacksmith_mag_02","blacksmith_mag_03","blacksmith_mag_04" },
-fifthSong  = { "blacksmith_mag_05","blacksmith_mag_06","blacksmith_mag_07","blacksmith_mag_08" }
-}
-
 local currentTimerId = nil
-local currentSoundId = nil
-local currentOwnerId = nil
 local isMounted = false
 local isInCombat = false
 local isGalloping = false
+local whistleSongs = {
+    "blacksmith_030","blacksmith_032","blacksmith_035","blacksmith_036",
+    "blacksmith_041","blacksmith_045","blacksmith_049","blacksmith_053",
+    "blacksmith_058","blacksmith_063","blacksmith_068","blacksmith_075",
+    "blacksmith_mag_01","blacksmith_mag_02","blacksmith_mag_03","blacksmith_mag_04",
+    "blacksmith_mag_05","blacksmith_mag_06","blacksmith_mag_07","blacksmith_mag_08",
+    "raven_whistling"
+}
 
-local function safeStopCurrentSound()
-    if currentSoundId and currentOwnerId and player then
-        pcall(function()
-            player:StopAudioTrigger(currentSoundId, currentOwnerId)
-        end)
-        currentSoundId = nil
-        currentOwnerId = nil
-    end
+local function safeStopCurrentWhistle()
+    KCDUtils.AudioTrigger:StopAll(mod.Name, player)
 end
 
 local function tryWhistle()
     if not isMounted or not player then return end
-
-    -- Chance prüfen
     if math.random() > config.chanceToWhistle then
         log:Info("Whistle skipped due to chance roll")
         return
     end
-
-    local songKeys = {}
-    for k in pairs(whistleSongs) do table.insert(songKeys, k) end
-    local randomSong = whistleSongs[songKeys[math.random(#songKeys)]]
-
-    local triggerName = randomSong[math.random(#randomSong)]
-    local triggerId = AudioUtils.LookupTriggerID(triggerName)
-    if triggerId then
-        currentSoundId = triggerId
-        currentOwnerId = player:GetDefaultAuxAudioProxyID()
-        player:ExecuteAudioTrigger(currentSoundId, currentOwnerId)
-    else
-        log:Warn("Could not find whistle trigger: "..triggerName)
-    end
+    KCDUtils.AudioTrigger:PlayRandom(mod.Name, player, whistleSongs)
 end
 
 local function loopWhistle(nTimerId)
@@ -89,7 +65,7 @@ local function updateWhistleState()
             Script.KillTimer(currentTimerId)
             currentTimerId = nil
         end
-        safeStopCurrentSound()
+        safeStopCurrentWhistle()
         return
     end
 
@@ -101,7 +77,7 @@ local function updateWhistleState()
             Script.KillTimer(currentTimerId)
             currentTimerId = nil
         end
-        safeStopCurrentSound()
+        safeStopCurrentWhistle()
     else
         if not currentTimerId then
             startWhistleTimer()
@@ -138,6 +114,11 @@ mod.OnGameplayStarted = function()
     KCDUtils.Config.LoadFromDB(mod.Name, config)
     updateWhistleState()
 end
+
+----------------------------------------------------------------
+--- Commands
+----------------------------------------------------------------
+-- #region Commands
 
 local function toggleMod()
     config.useMod = not config.useMod
@@ -287,3 +268,5 @@ KCDUtils.Command.Add("hw", "speed", "HenrysWhistle:SetSpeedThreshold(%1)", "Sets
 KCDUtils.Command.Add("hw", "delay", "HenrysWhistle:SetDelayRange(%line)", "Sets the delay range for Henry's Whistle")
 KCDUtils.Command.Add("hw", "loop_delay", "HenrysWhistle:SetLoopDelayRange(%line)", "Sets the loop delay range for Henry's Whistle")
 KCDUtils.Command.Add("hw", "chance", "HenrysWhistle:SetWhistleChance(%1)", "Sets the chance to whistle (0.0 to 1.0) for Henry's Whistle")
+
+-- #endregion Commands
