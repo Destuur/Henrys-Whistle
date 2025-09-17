@@ -6,6 +6,7 @@ mod.Config = {
     maxDelay = 12000,
     loopMin  = 50000,
     loopMax  = 70000,
+    firstMount = false,
 
     speedThreshold = 11,
     useMod = true,
@@ -79,6 +80,11 @@ local function updateWhistleState()
         end
         safeStopCurrentWhistle()
     else
+        if not config.firstMount then
+            config.firstMount = true
+            db:Set("firstMount", true)
+            KCDUtils.UI.ShowTutorial("@ui_tutorial_hw_49oE")
+        end
         if not currentTimerId then
             startWhistleTimer()
         end
@@ -104,7 +110,7 @@ mod.On.DistanceTravelled = function(data)
 end
 
 mod.OnGameplayStarted = function()
-    KCDUtils.UI.ShowNotification("Henry's Whistle mod activated.")
+    KCDUtils.UI.ShowNotification("@ui_notification_hw_initialized")
 
     if player and player.human:IsMounted() then
         isMounted = true
@@ -123,10 +129,10 @@ end
 local function toggleMod()
     config.useMod = not config.useMod
     if config.useMod then
-        KCDUtils.UI.ShowNotification("Henry's Whistle mod enabled.")
+        KCDUtils.UI.ShowNotification("@ui_notification_hw_enabled")
         log:Info("Henry's Whistle enabled.")
     else
-        KCDUtils.UI.ShowNotification("Henry's Whistle mod disabled.")
+        KCDUtils.UI.ShowNotification("@ui_notification_hw_disabled")
         log:Info("Henry's Whistle disabled.")
     end
     db:Set("useMod", config.useMod)
@@ -260,7 +266,8 @@ local function printHelp()
     log:Info("  hw_reset                 - Reset config to defaults")
 end
 
---- @binding hw_toggle
+--- @bindingCommand hw_toggle
+--- @bindingMap movement
 KCDUtils.Command.AddFunction("hw", "toggle", toggleMod, "Toggles Henry's Whistle on or off")
 KCDUtils.Command.AddFunction("hw", "toggle_combat", toggleCombatRestriction, "Toggles combat restriction for Henry's Whistle")
 KCDUtils.Command.AddFunction("hw", "toggle_gallop", toggleGallopRestriction, "Toggles gallop restriction for Henry's Whistle")
