@@ -192,9 +192,9 @@ function HenrysWhistle:SetLoopDelayRange(line)
     local maxNum = tonumber(maxStr)
 
     if minNum and maxNum and minNum > 0 and maxNum >= minNum then
-        -- Sicherstellen, dass Minimum 25 ist
-        if minNum < 25 then minNum = 25 end
-        if maxNum < 25 then maxNum = 25 end
+        -- Sicherstellen, dass Minimum 30 ist
+        if minNum < 30 then minNum = 30 end
+        if maxNum < 30 then maxNum = 30 end
 
         config.loopMin = minNum * 1000
         config.loopMax = maxNum * 1000
