@@ -123,8 +123,10 @@ end
 local function toggleMod()
     config.useMod = not config.useMod
     if config.useMod then
+        KCDUtils.UI.ShowNotification("Henry's Whistle mod enabled.")
         log:Info("Henry's Whistle enabled.")
     else
+        KCDUtils.UI.ShowNotification("Henry's Whistle mod disabled.")
         log:Info("Henry's Whistle disabled.")
     end
     db:Set("useMod", config.useMod)
@@ -258,6 +260,7 @@ local function printHelp()
     log:Info("  hw_reset                 - Reset config to defaults")
 end
 
+--- @binding hw_toggle
 KCDUtils.Command.AddFunction("hw", "toggle", toggleMod, "Toggles Henry's Whistle on or off")
 KCDUtils.Command.AddFunction("hw", "toggle_combat", toggleCombatRestriction, "Toggles combat restriction for Henry's Whistle")
 KCDUtils.Command.AddFunction("hw", "toggle_gallop", toggleGallopRestriction, "Toggles gallop restriction for Henry's Whistle")
