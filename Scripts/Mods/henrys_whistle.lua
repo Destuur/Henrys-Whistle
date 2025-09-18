@@ -1,18 +1,31 @@
 local mod = KCDUtils.RegisterMod({ Name = "henrys_whistle" })
 
-mod.Config = {
-    chanceToWhistle = 1,
-    minDelay = 5000,
-    maxDelay = 12000,
-    loopMin  = 50000,
-    loopMax  = 70000,
-    firstMount = false,
+-- mod.Config = {
+--     chanceToWhistle = 1,
+--     minDelay = 5000,
+--     maxDelay = 12000,
+--     loopMin  = 50000,
+--     loopMax  = 70000,
+--     firstMount = false,
 
-    speedThreshold = 11,
-    useMod = true,
-    useCombatRestriction = true,
-    useGallopRestriction = true
-}
+--     speedThreshold = 11,
+--     useMod = true,
+--     useCombatRestriction = true,
+--     useGallopRestriction = true
+-- }
+
+mod.Config = KCDUtils.UI.ConfigBuilder({
+    chanceToWhistle = { 1, type="value", min=0, max=1, tooltip="Chance (0-1)" },
+    minDelay = { 5000, type="value", min=1000, max=60000, tooltip="Minimum delay (ms)" },
+    maxDelay = { 12000, type="value", min=1000, max=60000, tooltip="Maximum delay (ms)" },
+    loopMin  = { 50000, type="value", min=30000, max=120000, tooltip="Minimum loop delay (ms)" },
+    loopMax  = { 70000, type="value", min=30000, max=120000, tooltip="Maximum loop delay (ms)" },
+    speedThreshold = { 11, type="value", min=1, max=50, tooltip="Minimum speed" },
+    firstMount = { false, type="choice", choices={"Disabled", "Enabled"}, valueMap={false, true}, hidden = true },
+    useMod = { true, type="choice", choices={"Off","On"}, valueMap={false,true} },
+    useCombatRestriction = { true, type="choice", choices={"Off","On"}, valueMap={false,true} },
+    useGallopRestriction = { true, type="choice", choices={"Off","On"}, valueMap={false,true} }
+})
 
 HenrysWhistle = mod
 
@@ -22,7 +35,9 @@ local config = HenrysWhistle.Config
 local currentTimerId = nil
 local isMounted = false
 local isInCombat = false
+local isInDialog = false
 local isGalloping = false
+local whistleEvent = nil
 local whistleSongs = {
     "blacksmith_030","blacksmith_032","blacksmith_035","blacksmith_036",
     "blacksmith_041","blacksmith_045","blacksmith_049","blacksmith_053",
@@ -47,6 +62,7 @@ end
 
 local function loopWhistle(nTimerId)
     if nTimerId ~= currentTimerId then return end
+    whistleEvent.Trigger()
     tryWhistle()
     if isMounted then
         currentTimerId = Script.SetTimer(math.random(config.loopMin, config.loopMax), loopWhistle)
@@ -73,7 +89,7 @@ local function updateWhistleState()
     local blockedByCombat = config.useCombatRestriction and isInCombat
     local blockedByGallop = config.useGallopRestriction and isGalloping
 
-    if not isMounted or blockedByCombat or blockedByGallop then
+    if not isMounted or blockedByCombat or blockedByGallop or isInDialog then
         if currentTimerId then
             Script.KillTimer(currentTimerId)
             currentTimerId = nil
@@ -83,7 +99,7 @@ local function updateWhistleState()
         if not config.firstMount then
             config.firstMount = true
             db:Set("firstMount", true)
-            KCDUtils.UI.ShowTutorial("@ui_tutorial_hw_49oE")
+            KCDUtils.UI.ShowTutorial("@ui_tutorial_hw_49oE", 8000, true)
         end
         if not currentTimerId then
             startWhistleTimer()
@@ -101,6 +117,11 @@ mod.On.CombatStateChanged = function(data)
     updateWhistleState()
 end
 
+mod.On.DialogStateChanged = function(data)
+    isInDialog = data.inDialog
+    updateWhistleState()
+end
+
 mod.On.DistanceTravelled = function(data)
     if player and isMounted then
         local speed = data.speed
@@ -109,8 +130,11 @@ mod.On.DistanceTravelled = function(data)
     end
 end
 
+
+
 mod.OnGameplayStarted = function()
     KCDUtils.UI.ShowNotification("@ui_notification_hw_initialized")
+    whistleEvent = KCDUtils.Events.CreateEvent("WhistleTriggered")
 
     if player and player.human:IsMounted() then
         isMounted = true
@@ -238,12 +262,13 @@ end
 
 local function resetConfig()
     config.chanceToWhistle = 0.5
+    config.speedThreshold = 11
     config.minDelay = 5000
     config.maxDelay = 12000
     config.loopMin  = 50000
     config.loopMax  = 70000
 
-    config.speedThreshold = 11
+    config.firstMount = false
     config.useMod = true
     config.useCombatRestriction = true
     config.useGallopRestriction = true
