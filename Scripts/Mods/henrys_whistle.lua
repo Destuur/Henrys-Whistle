@@ -1,33 +1,89 @@
+-- Registrierung eines Mods
 local mod = KCDUtils.RegisterMod({ Name = "henrys_whistle" })
 
--- mod.Config = {
---     chanceToWhistle = 1,
---     minDelay = 5000,
---     maxDelay = 12000,
---     loopMin  = 50000,
---     loopMax  = 70000,
---     firstMount = false,
+-- Basis-Konfiguration
+mod.Config = {
+    chanceToWhistle = 1,
+    minDelay = 5000,
+    maxDelay = 12000,
+    loopMin  = 50000,
+    loopMax  = 70000,
+    speedThreshold = 11,
+    firstMount = false,
+    useMod = true,
+    useCombatRestriction = true,
+    useGallopRestriction = true
+}
 
---     speedThreshold = 11,
---     useMod = true,
---     useCombatRestriction = true,
---     useGallopRestriction = true
--- }
+-- Definitionen für MenuBuilder
+mod.ConfigDef = {
+    chanceToWhistle = {
+        type = "value",
+        tooltip = "Chance (0-1)",
+        min = 0,
+        max = 1,
+        default = mod.Config.chanceToWhistle
+    },
 
-mod.Config = KCDUtils.UI.ConfigBuilder({
-    chanceToWhistle = { 1, type="value", min=0, max=1, tooltip="Chance (0-1)" },
-    minDelay = { 5000, type="value", min=1000, max=60000, tooltip="Minimum delay (ms)" },
-    maxDelay = { 12000, type="value", min=1000, max=60000, tooltip="Maximum delay (ms)" },
-    loopMin  = { 50000, type="value", min=30000, max=120000, tooltip="Minimum loop delay (ms)" },
-    loopMax  = { 70000, type="value", min=30000, max=120000, tooltip="Maximum loop delay (ms)" },
-    speedThreshold = { 11, type="value", min=1, max=50, tooltip="Minimum speed" },
-    firstMount = { false, type="choice", choices={"Disabled", "Enabled"}, valueMap={false, true}, hidden = true },
-    useMod = { true, type="choice", choices={"Off","On"}, valueMap={false,true} },
-    useCombatRestriction = { true, type="choice", choices={"Off","On"}, valueMap={false,true} },
-    useGallopRestriction = { true, type="choice", choices={"Off","On"}, valueMap={false,true} }
-})
+    durationPreset = {
+        type = "choice",
+        tooltip = "Delay Range Preset",
+        choices = {
+            { label = "5 - 12 seconds", values = { minDelay=5000, maxDelay=12000 } },
+            { label = "10 - 20 seconds", values = { minDelay=10000, maxDelay=20000 } },
+            { label = "20 - 40 seconds", values = { minDelay=20000, maxDelay=40000 } }
+        },
+        keys = { "minDelay", "maxDelay" },
+        defaultChoiceId = 1
+    },
 
+    loopPreset = {
+        type = "choice",
+        tooltip = "Loop Delay Preset",
+        choices = {
+            { label = "50 - 70 seconds", values = { loopMin=50000, loopMax=70000 } },
+            { label = "60 - 90 seconds", values = { loopMin=60000, loopMax=90000 } },
+            { label = "90 - 120 seconds", values = { loopMin=90000, loopMax=120000 } }
+        },
+        keys = { "loopMin", "loopMax" },
+        defaultChoiceId = 1
+    },
+
+    speedThreshold = { 
+        type = "value", tooltip = "Minimum speed",
+        min = 1, max = 50, default = mod.Config.speedThreshold
+    },
+
+    firstMount = { 
+        type = "choice",
+        choices = { "No", "Yes" }, valueMap = { false, true },
+        hidden = true, defaultChoiceId = 1
+    },
+
+    useMod = { 
+        type = "choice",
+        choices = { "No", "Yes" }, valueMap = { false, true },
+        defaultChoiceId = mod.Config.useMod and 2 or 1
+    },
+
+    useCombatRestriction = { 
+        type = "choice",
+        choices = { "No", "Yes" }, valueMap = { false, true },
+        defaultChoiceId = mod.Config.useCombatRestriction and 2 or 1
+    },
+
+    useGallopRestriction = { 
+        type = "choice",
+        choices = { "No", "Yes" }, valueMap = { false, true },
+        defaultChoiceId = mod.Config.useGallopRestriction and 2 or 1
+    }
+}
+
+-- MenuBuilder aufrufen
+KCDUtils.UI.MenuBuilder(mod, mod.ConfigDef)
 HenrysWhistle = mod
+
+
 
 local log = HenrysWhistle.Logger
 local db = HenrysWhistle.DB
