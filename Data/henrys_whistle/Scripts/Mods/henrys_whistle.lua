@@ -1,89 +1,28 @@
--- Registrierung eines Mods
 local mod = KCDUtils.RegisterMod({ Name = "henrys_whistle" })
 
--- Basis-Konfiguration
 mod.Config = {
-    chanceToWhistle = 1,
-    minDelay = 5000,
-    maxDelay = 12000,
-    loopMin  = 50000,
-    loopMax  = 70000,
-    speedThreshold = 11,
+    chanceToWhistle = 100,
+    triggerDelayPreset = "Medium",
+    loopDelayPreset = "Medium",
     firstMount = false,
+    speedThreshold = 11,
     useMod = true,
     useCombatRestriction = true,
     useGallopRestriction = true
 }
 
--- Definitionen für MenuBuilder
-mod.ConfigDef = {
-    chanceToWhistle = {
-        type = "value",
-        tooltip = "Chance (0-1)",
-        min = 0,
-        max = 1,
-        default = mod.Config.chanceToWhistle
-    },
-
-    durationPreset = {
-        type = "choice",
-        tooltip = "Delay Range Preset",
-        choices = {
-            { label = "5 - 12 seconds", values = { minDelay=5000, maxDelay=12000 } },
-            { label = "10 - 20 seconds", values = { minDelay=10000, maxDelay=20000 } },
-            { label = "20 - 40 seconds", values = { minDelay=20000, maxDelay=40000 } }
-        },
-        keys = { "minDelay", "maxDelay" },
-        defaultChoiceId = 1
-    },
-
-    loopPreset = {
-        type = "choice",
-        tooltip = "Loop Delay Preset",
-        choices = {
-            { label = "50 - 70 seconds", values = { loopMin=50000, loopMax=70000 } },
-            { label = "60 - 90 seconds", values = { loopMin=60000, loopMax=90000 } },
-            { label = "90 - 120 seconds", values = { loopMin=90000, loopMax=120000 } }
-        },
-        keys = { "loopMin", "loopMax" },
-        defaultChoiceId = 1
-    },
-
-    speedThreshold = { 
-        type = "value", tooltip = "Minimum speed",
-        min = 1, max = 50, default = mod.Config.speedThreshold
-    },
-
-    firstMount = { 
-        type = "choice",
-        choices = { "No", "Yes" }, valueMap = { false, true },
-        hidden = true, defaultChoiceId = 1
-    },
-
-    useMod = { 
-        type = "choice",
-        choices = { "No", "Yes" }, valueMap = { false, true },
-        defaultChoiceId = mod.Config.useMod and 2 or 1
-    },
-
-    useCombatRestriction = { 
-        type = "choice",
-        choices = { "No", "Yes" }, valueMap = { false, true },
-        defaultChoiceId = mod.Config.useCombatRestriction and 2 or 1
-    },
-
-    useGallopRestriction = { 
-        type = "choice",
-        choices = { "No", "Yes" }, valueMap = { false, true },
-        defaultChoiceId = mod.Config.useGallopRestriction and 2 or 1
-    }
+local menuConfigTable = {
+    { key = "useMod", type = "choice", choices = {"No","Yes"}, valueMap = {false,true}, default = mod.Config.useMod, tooltip = "Enable/disable the mod" },
+    { key = "chanceToWhistle", type = "choice", choices = {"0","10","20","30","40","50","60","70","80","90","100"}, valueMap = {0,10,20,30,40,50,60,70,80,90,100}, default = mod.Config.chanceToWhistle, tooltip = "Chance to whistle (%)" },
+    { key = "triggerDelayPreset", type = "choice", choices = {"Short","Medium","Long"}, valueMap = {"Short","Medium","Long"}, default = mod.Config.triggerDelayPreset, tooltip = "Initial whistle delay after mounting" },
+    { key = "loopDelayPreset", type = "choice", choices = {"Short","Medium","Long"}, valueMap = {"Short","Medium","Long"}, default = mod.Config.loopDelayPreset, tooltip = "Loop whistle delay while mounted" },
+    { key = "useCombatRestriction", type = "choice", choices = {"No","Yes"}, valueMap = {false,true}, default = mod.Config.useCombatRestriction, tooltip = "Enable/disable combat restriction" },
+    { key = "useGallopRestriction", type = "choice", choices = {"No","Yes"}, valueMap = {false,true}, default = mod.Config.useGallopRestriction, tooltip = "Enable/disable gallop restriction" },
+    { key = "speedThreshold", type = "value", min = 1, max = 50, default = mod.Config.speedThreshold, tooltip = "Minimum speed" }
 }
 
--- MenuBuilder aufrufen
-KCDUtils.UI.MenuBuilder(mod, mod.ConfigDef)
+KCDUtils.Menu.RegisterMod(mod, menuConfigTable)
 HenrysWhistle = mod
-
-
 
 local log = HenrysWhistle.Logger
 local db = HenrysWhistle.DB
@@ -94,6 +33,18 @@ local isInCombat = false
 local isInDialog = false
 local isGalloping = false
 local whistleEvent = nil
+local triggerDelayPresets = {
+    Short  = { min = 3000,  max = 6000 },
+    Medium = { min = 5000,  max = 12000 },
+    Long   = { min = 10000, max = 20000 }
+}
+
+local loopDelayPresets = {
+    Short  = { min = 30000, max = 50000 },
+    Medium = { min = 50000, max = 70000 },
+    Long   = { min = 70000, max = 120000 }
+}
+
 local whistleSongs = {
     "blacksmith_030","blacksmith_032","blacksmith_035","blacksmith_036",
     "blacksmith_041","blacksmith_045","blacksmith_049","blacksmith_053",
@@ -109,27 +60,34 @@ end
 
 local function tryWhistle()
     if not isMounted or not player then return end
-    if math.random() > config.chanceToWhistle then
-        log:Info("Whistle skipped due to chance roll")
+
+    local roll = math.random(0, 100)
+    if roll > config.chanceToWhistle then
+        log:Info("Whistle skipped due to chance roll (" .. roll .. " > " .. config.chanceToWhistle .. ")")
         return
     end
+
     KCDUtils.AudioTrigger:PlayRandom(mod.Name, player, whistleSongs)
 end
 
 local function loopWhistle(nTimerId)
     if nTimerId ~= currentTimerId then return end
-    whistleEvent.Trigger()
+    if whistleEvent then whistleEvent:Trigger() end
     tryWhistle()
+
     if isMounted then
-        currentTimerId = Script.SetTimer(math.random(config.loopMin, config.loopMax), loopWhistle)
+        local preset = loopDelayPresets[config.loopDelayPreset] or loopDelayPresets.Medium
+        local delayMs = math.random(preset.min, preset.max)
+        currentTimerId = Script.SetTimer(delayMs, loopWhistle)
     else
         currentTimerId = nil
     end
 end
 
 local function startWhistleTimer()
-    local delay = math.random(config.minDelay, config.maxDelay)
-    currentTimerId = Script.SetTimer(delay, loopWhistle)
+    local preset = triggerDelayPresets[config.triggerDelayPreset] or triggerDelayPresets.Medium
+    local delayMs = math.random(preset.min, preset.max)
+    currentTimerId = Script.SetTimer(delayMs, loopWhistle)
 end
 
 local function updateWhistleState()
@@ -137,6 +95,7 @@ local function updateWhistleState()
         if currentTimerId then
             Script.KillTimer(currentTimerId)
             currentTimerId = nil
+            log:Info("Whistle timer killed")
         end
         safeStopCurrentWhistle()
         return
@@ -155,12 +114,27 @@ local function updateWhistleState()
         if not config.firstMount then
             config.firstMount = true
             db:Set("firstMount", true)
-            KCDUtils.UI.ShowTutorial("@ui_tutorial_hw_49oE", 8000, true)
+            KCDUtils.Menu.ShowTutorial("@ui_tutorial_hw_49oE", 8000, true)
         end
         if not currentTimerId then
             startWhistleTimer()
         end
     end
+end
+
+mod.On.MenuChanged = function(newConfig)
+    log:Info("Triggered")
+    for k, cfg in pairs(newConfig) do
+        if cfg._selectedIndex then
+            -- Choice mit valueMap
+            config[k] = cfg.valueMap[cfg._selectedIndex + 1]
+        elseif cfg.value ~= nil then
+            -- normale value oder choice ohne valueMap
+            config[k] = cfg.value
+        end
+    end
+    KCDUtils.Config.SaveAll(mod.Name, config)
+    updateWhistleState()
 end
 
 mod.On.MountedStateChanged = function(data)
@@ -186,10 +160,8 @@ mod.On.DistanceTravelled = function(data)
     end
 end
 
-
-
 mod.OnGameplayStarted = function()
-    KCDUtils.UI.ShowNotification("@ui_notification_hw_initialized")
+    KCDUtils.Menu.ShowNotification("@ui_notification_hw_initialized")
     whistleEvent = KCDUtils.Events.CreateEvent("WhistleTriggered")
 
     if player and player.human:IsMounted() then
@@ -209,13 +181,12 @@ end
 local function toggleMod()
     config.useMod = not config.useMod
     if config.useMod then
-        KCDUtils.UI.ShowNotification("@ui_notification_hw_enabled")
-        log:Info("Henry's Whistle enabled.")
+        KCDUtils.Menu.ShowNotification("@ui_notification_hw_enabled")
     else
-        KCDUtils.UI.ShowNotification("@ui_notification_hw_disabled")
-        log:Info("Henry's Whistle disabled.")
+        KCDUtils.Menu.ShowNotification("@ui_notification_hw_disabled")
     end
     db:Set("useMod", config.useMod)
+    KCDUtils.Menu.BuildWithDB(mod)
     updateWhistleState()
 end
 
@@ -227,6 +198,7 @@ local function toggleCombatRestriction()
         log:Info("Henry's Whistle combat restriction disabled.")
     end
     db:Set("useCombatRestriction", config.useCombatRestriction)
+    KCDUtils.Menu.BuildWithDB(mod)
     updateWhistleState()
 end
 
@@ -238,6 +210,7 @@ local function toggleGallopRestriction()
         log:Info("Henry's Whistle gallop restriction disabled.")
     end
     db:Set("useGallopRestriction", config.useGallopRestriction)
+    KCDUtils.Menu.BuildWithDB(mod)
     updateWhistleState()
 end
 
@@ -246,6 +219,7 @@ function HenrysWhistle:SetSpeedThreshold(param)
     if num and num > 0 then
         config.speedThreshold = num
         log:Info("Henry's Whistle speed threshold set to "..tostring(config.speedThreshold))
+        KCDUtils.Menu.BuildWithDB(mod)
         updateWhistleState()
         db:Set("speedThreshold", config.speedThreshold)
     else
@@ -253,55 +227,40 @@ function HenrysWhistle:SetSpeedThreshold(param)
     end
 end
 
-function HenrysWhistle:SetDelayRange(line)
-    local minStr, maxStr = line:match("^(%S+)%s*(%S*)$")
-    maxStr = maxStr ~= "" and maxStr or minStr
-    local minNum = tonumber(minStr)
-    local maxNum = tonumber(maxStr)
-
-    if minNum and maxNum and minNum > 0 and maxNum >= minNum then
-        config.minDelay = minNum * 1000
-        config.maxDelay = maxNum * 1000
-        log:Info("Henry's Whistle delay range set to "..tostring(config.minDelay).." - "..tostring(config.maxDelay).." ms")
+function HenrysWhistle:SetTriggerDelayPreset(preset)
+    if triggerDelayPresets[preset] then
+        config.triggerDelayPreset = preset
+        db:Set("triggerDelayPreset", preset)
+        log:Info("Trigger delay preset set to "..preset)
+        KCDUtils.Menu.BuildWithDB(mod)
         updateWhistleState()
-        db:Set("minDelay", config.minDelay)
-        db:Set("maxDelay", config.maxDelay)
     else
-        log:Error("Invalid delay range values: "..tostring(minStr)..", "..tostring(maxStr))
+        log:Error("Invalid trigger delay preset: "..tostring(preset))
     end
 end
 
-function HenrysWhistle:SetLoopDelayRange(line)
-    local minStr, maxStr = line:match("^(%S+)%s*(%S*)$")
-    maxStr = maxStr ~= "" and maxStr or minStr
-    local minNum = tonumber(minStr)
-    local maxNum = tonumber(maxStr)
-
-    if minNum and maxNum and minNum > 0 and maxNum >= minNum then
-        -- Sicherstellen, dass Minimum 30 ist
-        if minNum < 30 then minNum = 30 end
-        if maxNum < 30 then maxNum = 30 end
-
-        config.loopMin = minNum * 1000
-        config.loopMax = maxNum * 1000
-        log:Info("Henry's Whistle loop delay range set to "..tostring(config.loopMin).." - "..tostring(config.loopMax).." ms")
+function HenrysWhistle:SetLoopDelayPreset(preset)
+    if loopDelayPresets[preset] then
+        config.loopDelayPreset = preset
+        db:Set("loopDelayPreset", preset)
+        log:Info("Loop delay preset set to "..preset)
+        KCDUtils.Menu.BuildWithDB(mod)
         updateWhistleState()
-        db:Set("loopMin", config.loopMin)
-        db:Set("loopMax", config.loopMax)
     else
-        log:Error("Invalid loop delay range values: "..tostring(minStr)..", "..tostring(maxStr))
+        log:Error("Invalid loop delay preset: "..tostring(preset))
     end
 end
 
 function HenrysWhistle:SetWhistleChance(param)
     local num = tonumber(param)
-    if num and num >= 0 and num <= 1 then
-        config.chanceToWhistle = num
-        log:Info("Henry's Whistle chance to whistle set to "..tostring(num * 100).." %")
+    if num and num >= 0 and num <= 100 then
+        config.chanceToWhistle = math.floor(num)  -- immer integer
+        log:Info("Henry's Whistle chance to whistle set to " .. tostring(config.chanceToWhistle) .. " %")
+        KCDUtils.Menu.BuildWithDB(mod)
         updateWhistleState()
         db:Set("chanceToWhistle", config.chanceToWhistle)
     else
-        log:Error("Invalid chance to whistle value: "..tostring(param)..". Must be between 0 and 1.")
+        log:Error("Invalid chance to whistle value: " .. tostring(param) .. ". Must be between 0 and 100.")
     end
 end
 
@@ -311,19 +270,16 @@ local function showStatus()
     log:Info("  Combat Restriction: " .. tostring(config.useCombatRestriction))
     log:Info("  Gallop Restriction: " .. tostring(config.useGallopRestriction))
     log:Info("  Speed Threshold: " .. tostring(config.speedThreshold))
-    log:Info("  Delay Range: " .. tostring(config.minDelay / 1000) .. " - " .. tostring(config.maxDelay / 1000) .. " seconds")
-    log:Info("  Loop Delay Range: " .. tostring(config.loopMin / 1000) .. " - " .. tostring(config.loopMax / 1000) .. " seconds")
-    log:Info("  Chance to Whistle: " .. tostring(config.chanceToWhistle * 100) .. " %")
+    log:Info("  Trigger Delay Preset: " .. tostring(config.triggerDelayPreset))
+    log:Info("  Loop Delay Preset: " .. tostring(config.loopDelayPreset))
+    log:Info("  Chance to Whistle: " .. tostring(config.chanceToWhistle) .. " %")
 end
 
 local function resetConfig()
-    config.chanceToWhistle = 0.5
+    config.chanceToWhistle = 100
     config.speedThreshold = 11
-    config.minDelay = 5000
-    config.maxDelay = 12000
-    config.loopMin  = 50000
-    config.loopMax  = 70000
-
+    config.triggerDelayPreset = "Medium"
+    config.loopDelayPreset = "Medium"
     config.firstMount = false
     config.useMod = true
     config.useCombatRestriction = true
@@ -331,20 +287,21 @@ local function resetConfig()
 
     KCDUtils.Config.SaveAll(mod.Name, config)
     log:Info("Henry's Whistle configuration reset to defaults.")
+    KCDUtils.Menu.BuildWithDB(mod)
     updateWhistleState()
 end
 
 local function printHelp()
     log:Info("Henry's Whistle Commands:")
     log:Info("  hw_toggle            - Toggle the mod on/off")
-    log:Info("  hw_toggle_combat         - Toggle combat restriction")
-    log:Info("  hw_toggle_gallop         - Toggle gallop restriction")
-    log:Info("  hw_speed <value>        - Set riding speed threshold (default: 11)")
-    log:Info("  hw_delay <min> [max]   - Set whistle delay in seconds; max optional (default: 5-12s)")
-    log:Info("  hw_loop_delay <min> [max] - Set loop delay in seconds; max optional (default: 50-70s)")
-    log:Info("  hw_chance <0.0-1.0>      - Chance to whistle, 0.0-1.0 (default: 0.5 = 50%)")
-    log:Info("  hw_show_status           - Show current config")
-    log:Info("  hw_reset                 - Reset config to defaults")
+    log:Info("  hw_toggle_combat     - Toggle combat restriction")
+    log:Info("  hw_toggle_gallop     - Toggle gallop restriction")
+    log:Info("  hw_speed <value>     - Set riding speed threshold (default: 11)")
+    log:Info("  hw_trigger_delay <Short|Medium|Long> - Set initial whistle delay preset")
+    log:Info("  hw_loop_delay <Short|Medium|Long>    - Set loop whistle delay preset")
+    log:Info("  hw_chance <0-100>   - Chance to whistle, 0 - 100 % (default: 100 %)")
+    log:Info("  hw_show_status       - Show current config")
+    log:Info("  hw_reset             - Reset config to defaults")
 end
 
 --- @bindingCommand hw_toggle
@@ -356,8 +313,6 @@ KCDUtils.Command.AddFunction("hw", "show_status", showStatus, "Shows current con
 KCDUtils.Command.AddFunction("hw", "reset", resetConfig, "Resets configuration to default values")
 KCDUtils.Command.AddFunction("hw", "help", printHelp, "Shows help for Henry's Whistle commands")
 KCDUtils.Command.Add("hw", "speed", "HenrysWhistle:SetSpeedThreshold(%1)", "Sets the speed threshold for Henry's Whistle")
-KCDUtils.Command.Add("hw", "delay", "HenrysWhistle:SetDelayRange(%line)", "Sets the delay range for Henry's Whistle")
-KCDUtils.Command.Add("hw", "loop_delay", "HenrysWhistle:SetLoopDelayRange(%line)", "Sets the loop delay range for Henry's Whistle")
-KCDUtils.Command.Add("hw", "chance", "HenrysWhistle:SetWhistleChance(%1)", "Sets the chance to whistle (0.0 to 1.0) for Henry's Whistle")
-
--- #endregion Commands
+KCDUtils.Command.Add("hw", "trigger_delay", "HenrysWhistle:SetTriggerDelayPreset(%1)", "Sets the initial trigger delay preset")
+KCDUtils.Command.Add("hw", "loop_delay", "HenrysWhistle:SetLoopDelayPreset(%1)", "Sets the loop delay preset")
+KCDUtils.Command.Add("hw", "chance", "HenrysWhistle:SetWhistleChance(%1)", "Sets the chance to whistle (0 to 100) for Henry's Whistle")
