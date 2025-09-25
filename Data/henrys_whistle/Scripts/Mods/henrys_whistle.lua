@@ -23,14 +23,6 @@ local menuConfigTable = {
     { key = "useCombatRestriction", type = "choice", choices = {"No","Yes"}, valueMap = {false,true}, default = mod.Config.useCombatRestriction, tooltip = "Enable/disable combat restriction" },
     { key = "useGallopRestriction", type = "choice", choices = {"No","Yes"}, valueMap = {false,true}, default = mod.Config.useGallopRestriction, tooltip = "Enable/disable gallop restriction" },
     { key = "speedThreshold", type = "value", min = 1, max = 50, default = mod.Config.speedThreshold, tooltip = "Minimum speed" }
-local menuConfigTable = {
-    { key = "useMod", type = "choice", choices = {"No","Yes"}, valueMap = {false,true}, default = mod.Config.useMod, tooltip = "Enable/disable the mod" },
-    { key = "chanceToWhistle", type = "choice", choices = {"0","10","20","30","40","50","60","70","80","90","100"}, valueMap = {0,10,20,30,40,50,60,70,80,90,100}, default = mod.Config.chanceToWhistle, tooltip = "Chance to whistle (%)" },
-    { key = "triggerDelayPreset", type = "choice", choices = {"Short","Medium","Long"}, valueMap = {"Short","Medium","Long"}, default = mod.Config.triggerDelayPreset, tooltip = "Initial whistle delay after mounting" },
-    { key = "loopDelayPreset", type = "choice", choices = {"Short","Medium","Long"}, valueMap = {"Short","Medium","Long"}, default = mod.Config.loopDelayPreset, tooltip = "Loop whistle delay while mounted" },
-    { key = "useCombatRestriction", type = "choice", choices = {"No","Yes"}, valueMap = {false,true}, default = mod.Config.useCombatRestriction, tooltip = "Enable/disable combat restriction" },
-    { key = "useGallopRestriction", type = "choice", choices = {"No","Yes"}, valueMap = {false,true}, default = mod.Config.useGallopRestriction, tooltip = "Enable/disable gallop restriction" },
-    { key = "speedThreshold", type = "value", min = 1, max = 50, default = mod.Config.speedThreshold, tooltip = "Minimum speed" }
 }
 
 KCDUtils.Menu.RegisterMod(mod, menuConfigTable)
@@ -45,17 +37,6 @@ local isInCombat = false
 local isInDialog = false
 local isGalloping = false
 local whistleEvent = nil
-local triggerDelayPresets = {
-    Short  = { min = 3000,  max = 6000 },
-    Medium = { min = 5000,  max = 12000 },
-    Long   = { min = 10000, max = 20000 }
-}
-
-local loopDelayPresets = {
-    Short  = { min = 30000, max = 50000 },
-    Medium = { min = 50000, max = 70000 },
-    Long   = { min = 70000, max = 120000 }
-}
 
 local triggerDelayPresets = {
     Short  = { min = 3000,  max = 6000 },
@@ -83,18 +64,14 @@ local function safeStopCurrentWhistle()
 end
 
 local function tryWhistle()
-    if not isMounted or not player then return end
-
-    local roll = math.random(0, 100)
-    if roll > config.chanceToWhistle then
-        log:Info("Whistle skipped due to chance roll (" .. roll .. " > " .. config.chanceToWhistle .. ")")
-
+    if not isMounted or not player then 
+        return 
+    end
     local roll = math.random(0, 100)
     if roll > config.chanceToWhistle then
         log:Info("Whistle skipped due to chance roll (" .. roll .. " > " .. config.chanceToWhistle .. ")")
         return
     end
-
 
     KCDUtils.AudioTrigger:PlayRandom(mod.Name, player, whistleSongs)
 end
