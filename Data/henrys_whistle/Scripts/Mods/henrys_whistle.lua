@@ -5,12 +5,24 @@ mod.Config = {
     triggerDelayPreset = "Medium",
     loopDelayPreset = "Medium",
     firstMount = false,
+    chanceToWhistle = 100,
+    triggerDelayPreset = "Medium",
+    loopDelayPreset = "Medium",
+    firstMount = false,
     speedThreshold = 11,
     useMod = true,
     useCombatRestriction = true,
     useGallopRestriction = true
 }
 
+local menuConfigTable = {
+    { key = "useMod", type = "choice", choices = {"No","Yes"}, valueMap = {false,true}, default = mod.Config.useMod, tooltip = "Enable/disable the mod" },
+    { key = "chanceToWhistle", type = "choice", choices = {"0","10","20","30","40","50","60","70","80","90","100"}, valueMap = {0,10,20,30,40,50,60,70,80,90,100}, default = mod.Config.chanceToWhistle, tooltip = "Chance to whistle (%)" },
+    { key = "triggerDelayPreset", type = "choice", choices = {"Short","Medium","Long"}, valueMap = {"Short","Medium","Long"}, default = mod.Config.triggerDelayPreset, tooltip = "Initial whistle delay after mounting" },
+    { key = "loopDelayPreset", type = "choice", choices = {"Short","Medium","Long"}, valueMap = {"Short","Medium","Long"}, default = mod.Config.loopDelayPreset, tooltip = "Loop whistle delay while mounted" },
+    { key = "useCombatRestriction", type = "choice", choices = {"No","Yes"}, valueMap = {false,true}, default = mod.Config.useCombatRestriction, tooltip = "Enable/disable combat restriction" },
+    { key = "useGallopRestriction", type = "choice", choices = {"No","Yes"}, valueMap = {false,true}, default = mod.Config.useGallopRestriction, tooltip = "Enable/disable gallop restriction" },
+    { key = "speedThreshold", type = "value", min = 1, max = 50, default = mod.Config.speedThreshold, tooltip = "Minimum speed" }
 local menuConfigTable = {
     { key = "useMod", type = "choice", choices = {"No","Yes"}, valueMap = {false,true}, default = mod.Config.useMod, tooltip = "Enable/disable the mod" },
     { key = "chanceToWhistle", type = "choice", choices = {"0","10","20","30","40","50","60","70","80","90","100"}, valueMap = {0,10,20,30,40,50,60,70,80,90,100}, default = mod.Config.chanceToWhistle, tooltip = "Chance to whistle (%)" },
@@ -45,6 +57,18 @@ local loopDelayPresets = {
     Long   = { min = 70000, max = 120000 }
 }
 
+local triggerDelayPresets = {
+    Short  = { min = 3000,  max = 6000 },
+    Medium = { min = 5000,  max = 12000 },
+    Long   = { min = 10000, max = 20000 }
+}
+
+local loopDelayPresets = {
+    Short  = { min = 30000, max = 50000 },
+    Medium = { min = 50000, max = 70000 },
+    Long   = { min = 70000, max = 120000 }
+}
+
 local whistleSongs = {
     "blacksmith_030","blacksmith_032","blacksmith_035","blacksmith_036",
     "blacksmith_041","blacksmith_045","blacksmith_049","blacksmith_053",
@@ -64,8 +88,13 @@ local function tryWhistle()
     local roll = math.random(0, 100)
     if roll > config.chanceToWhistle then
         log:Info("Whistle skipped due to chance roll (" .. roll .. " > " .. config.chanceToWhistle .. ")")
+
+    local roll = math.random(0, 100)
+    if roll > config.chanceToWhistle then
+        log:Info("Whistle skipped due to chance roll (" .. roll .. " > " .. config.chanceToWhistle .. ")")
         return
     end
+
 
     KCDUtils.AudioTrigger:PlayRandom(mod.Name, player, whistleSongs)
 end
@@ -73,9 +102,14 @@ end
 local function loopWhistle(nTimerId)
     if nTimerId ~= currentTimerId then return end
     if whistleEvent then whistleEvent:Trigger() end
+    if whistleEvent then whistleEvent:Trigger() end
     tryWhistle()
 
+
     if isMounted then
+        local preset = loopDelayPresets[config.loopDelayPreset] or loopDelayPresets.Medium
+        local delayMs = math.random(preset.min, preset.max)
+        currentTimerId = Script.SetTimer(delayMs, loopWhistle)
         local preset = loopDelayPresets[config.loopDelayPreset] or loopDelayPresets.Medium
         local delayMs = math.random(preset.min, preset.max)
         currentTimerId = Script.SetTimer(delayMs, loopWhistle)
@@ -88,6 +122,9 @@ local function startWhistleTimer()
     local preset = triggerDelayPresets[config.triggerDelayPreset] or triggerDelayPresets.Medium
     local delayMs = math.random(preset.min, preset.max)
     currentTimerId = Script.SetTimer(delayMs, loopWhistle)
+    local preset = triggerDelayPresets[config.triggerDelayPreset] or triggerDelayPresets.Medium
+    local delayMs = math.random(preset.min, preset.max)
+    currentTimerId = Script.SetTimer(delayMs, loopWhistle)
 end
 
 local function updateWhistleState()
@@ -95,6 +132,7 @@ local function updateWhistleState()
         if currentTimerId then
             Script.KillTimer(currentTimerId)
             currentTimerId = nil
+            log:Info("Whistle timer killed")
             log:Info("Whistle timer killed")
         end
         safeStopCurrentWhistle()
@@ -236,6 +274,7 @@ function HenrysWhistle:SetTriggerDelayPreset(preset)
         updateWhistleState()
     else
         log:Error("Invalid trigger delay preset: "..tostring(preset))
+        log:Error("Invalid trigger delay preset: "..tostring(preset))
     end
 end
 
@@ -247,6 +286,7 @@ function HenrysWhistle:SetLoopDelayPreset(preset)
         KCDUtils.Menu.BuildWithDB(mod)
         updateWhistleState()
     else
+        log:Error("Invalid loop delay preset: "..tostring(preset))
         log:Error("Invalid loop delay preset: "..tostring(preset))
     end
 end
@@ -261,6 +301,7 @@ function HenrysWhistle:SetWhistleChance(param)
         db:Set("chanceToWhistle", config.chanceToWhistle)
     else
         log:Error("Invalid chance to whistle value: " .. tostring(param) .. ". Must be between 0 and 100.")
+        log:Error("Invalid chance to whistle value: " .. tostring(param) .. ". Must be between 0 and 100.")
     end
 end
 
@@ -273,11 +314,17 @@ local function showStatus()
     log:Info("  Trigger Delay Preset: " .. tostring(config.triggerDelayPreset))
     log:Info("  Loop Delay Preset: " .. tostring(config.loopDelayPreset))
     log:Info("  Chance to Whistle: " .. tostring(config.chanceToWhistle) .. " %")
+    log:Info("  Trigger Delay Preset: " .. tostring(config.triggerDelayPreset))
+    log:Info("  Loop Delay Preset: " .. tostring(config.loopDelayPreset))
+    log:Info("  Chance to Whistle: " .. tostring(config.chanceToWhistle) .. " %")
 end
 
 local function resetConfig()
     config.chanceToWhistle = 100
+    config.chanceToWhistle = 100
     config.speedThreshold = 11
+    config.triggerDelayPreset = "Medium"
+    config.loopDelayPreset = "Medium"
     config.triggerDelayPreset = "Medium"
     config.loopDelayPreset = "Medium"
     config.firstMount = false
@@ -302,6 +349,14 @@ local function printHelp()
     log:Info("  hw_chance <0-100>   - Chance to whistle, 0 - 100 % (default: 100 %)")
     log:Info("  hw_show_status       - Show current config")
     log:Info("  hw_reset             - Reset config to defaults")
+    log:Info("  hw_toggle_combat     - Toggle combat restriction")
+    log:Info("  hw_toggle_gallop     - Toggle gallop restriction")
+    log:Info("  hw_speed <value>     - Set riding speed threshold (default: 11)")
+    log:Info("  hw_trigger_delay <Short|Medium|Long> - Set initial whistle delay preset")
+    log:Info("  hw_loop_delay <Short|Medium|Long>    - Set loop whistle delay preset")
+    log:Info("  hw_chance <0-100>   - Chance to whistle, 0 - 100 % (default: 100 %)")
+    log:Info("  hw_show_status       - Show current config")
+    log:Info("  hw_reset             - Reset config to defaults")
 end
 
 --- @bindingCommand hw_toggle
@@ -313,6 +368,9 @@ KCDUtils.Command.AddFunction("hw", "show_status", showStatus, "Shows current con
 KCDUtils.Command.AddFunction("hw", "reset", resetConfig, "Resets configuration to default values")
 KCDUtils.Command.AddFunction("hw", "help", printHelp, "Shows help for Henry's Whistle commands")
 KCDUtils.Command.Add("hw", "speed", "HenrysWhistle:SetSpeedThreshold(%1)", "Sets the speed threshold for Henry's Whistle")
+KCDUtils.Command.Add("hw", "trigger_delay", "HenrysWhistle:SetTriggerDelayPreset(%1)", "Sets the initial trigger delay preset")
+KCDUtils.Command.Add("hw", "loop_delay", "HenrysWhistle:SetLoopDelayPreset(%1)", "Sets the loop delay preset")
+KCDUtils.Command.Add("hw", "chance", "HenrysWhistle:SetWhistleChance(%1)", "Sets the chance to whistle (0 to 100) for Henry's Whistle")
 KCDUtils.Command.Add("hw", "trigger_delay", "HenrysWhistle:SetTriggerDelayPreset(%1)", "Sets the initial trigger delay preset")
 KCDUtils.Command.Add("hw", "loop_delay", "HenrysWhistle:SetLoopDelayPreset(%1)", "Sets the loop delay preset")
 KCDUtils.Command.Add("hw", "chance", "HenrysWhistle:SetWhistleChance(%1)", "Sets the chance to whistle (0 to 100) for Henry's Whistle")
