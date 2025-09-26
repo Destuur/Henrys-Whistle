@@ -22,11 +22,10 @@ local menuConfigTable = {
 }
 
 KCDUtils.Menu.RegisterMod(mod, menuConfigTable)
-HenrysWhistle = mod
 
-local log = HenrysWhistle.Logger
-local db = HenrysWhistle.DB
-local config = HenrysWhistle.Config
+local log = mod.Logger
+local db = mod.DB
+local config = mod.Config
 local currentTimerId = nil
 local isMounted = false
 local isInCombat = false
@@ -114,7 +113,7 @@ local function updateWhistleState()
         if not config.firstMount then
             config.firstMount = true
             db:Set("firstMount", true)
-            KCDUtils.Menu.ShowTutorial("@ui_tutorial_hw_49oE", 8000, true)
+            KCDUtils.UI.ShowTutorial("@ui_tutorial_hw_49oE", 8000, true)
         end
         if not currentTimerId then
             startWhistleTimer()
@@ -161,7 +160,7 @@ mod.On.DistanceTravelled = function(data)
 end
 
 mod.OnGameplayStarted = function()
-    KCDUtils.Menu.ShowNotification("@ui_notification_hw_initialized")
+    KCDUtils.UI.ShowNotification("@ui_notification_hw_initialized")
     whistleEvent = KCDUtils.Events.CreateEvent("WhistleTriggered")
 
     if player and player.human:IsMounted() then
@@ -173,6 +172,7 @@ mod.OnGameplayStarted = function()
     updateWhistleState()
 end
 
+HenrysWhistle = mod
 ----------------------------------------------------------------
 --- Commands
 ----------------------------------------------------------------
@@ -181,9 +181,9 @@ end
 local function toggleMod()
     config.useMod = not config.useMod
     if config.useMod then
-        KCDUtils.Menu.ShowNotification("@ui_notification_hw_enabled")
+        KCDUtils.UI.ShowNotification("@ui_notification_hw_enabled")
     else
-        KCDUtils.Menu.ShowNotification("@ui_notification_hw_disabled")
+        KCDUtils.UI.ShowNotification("@ui_notification_hw_disabled")
     end
     db:Set("useMod", config.useMod)
     KCDUtils.Menu.BuildWithDB(mod)
@@ -286,9 +286,9 @@ local function resetConfig()
     config.useGallopRestriction = true
 
     KCDUtils.Config.SaveAll(mod.Name, config)
-    log:Info("Henry's Whistle configuration reset to defaults.")
     KCDUtils.Menu.BuildWithDB(mod)
     updateWhistleState()
+    log:Info("Henry's Whistle configuration reset to defaults.")
 end
 
 local function printHelp()
