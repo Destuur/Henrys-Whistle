@@ -1,6 +1,6 @@
 local mod = KCDUtils.RegisterMod({ Name = "henrys_whistle" })
 
-mod.Config = {
+local defaultConfig = {
     chanceToWhistle = 100,
     triggerDelayPreset = "Medium",
     loopDelayPreset = "Medium",
@@ -9,6 +9,17 @@ mod.Config = {
     useMod = true,
     useCombatRestriction = true,
     useGallopRestriction = true
+}
+
+mod.Config = {
+    chanceToWhistle = defaultConfig.chanceToWhistle,
+    triggerDelayPreset = defaultConfig.triggerDelayPreset,
+    loopDelayPreset = defaultConfig.loopDelayPreset,
+    firstMount = defaultConfig.firstMount,
+    speedThreshold = defaultConfig.speedThreshold,
+    useMod = defaultConfig.useMod,
+    useCombatRestriction = defaultConfig.useCombatRestriction,
+    useGallopRestriction = defaultConfig.useGallopRestriction
 }
 
 local menuConfigTable = {
@@ -122,17 +133,33 @@ local function updateWhistleState()
 end
 
 mod.On.MenuChanged = function(newConfig)
-    log:Info("Triggered")
-    for k, cfg in pairs(newConfig) do
-        if cfg._selectedIndex then
-            -- Choice mit valueMap
-            config[k] = cfg.valueMap[cfg._selectedIndex + 1]
-        elseif cfg.value ~= nil then
-            -- normale value oder choice ohne valueMap
-            config[k] = cfg.value
+    log:Info("Menu changed")
+
+    -- 1) Wenn kein newConfig übergeben, reset auf default
+    if not newConfig then
+        for key, value in pairs(defaultConfig) do
+            mod.Config[key] = value
+            log:Info(" - " .. key .. ": reset to default = " .. tostring(value))
+        end
+    else
+        -- 2) newConfig anwenden, nur vorhandene Keys
+        for _, cfg in ipairs(newConfig) do
+            local key = cfg.id
+            if cfg.valueMap then
+                local index = (cfg._selectedIndex or 0) + 1
+                mod.Config[key] = cfg.valueMap[index]
+                log:Info(" - " .. key .. ": mapped to " .. tostring(mod.Config[key]))
+            elseif cfg.value ~= nil then
+                mod.Config[key] = cfg.value
+                log:Info(" - " .. key .. ": direct value = " .. tostring(cfg.value))
+            end
+            -- Keys, die nicht in newConfig vorkommen, bleiben unverändert
         end
     end
-    KCDUtils.Config.SaveAll(mod.Name, config)
+
+    log:Info("Config updated from menu")
+    KCDUtils.Config.SaveAll(mod.Name, mod.Config)
+    KCDUtils.Menu.BuildWithDB(mod)
     updateWhistleState()
 end
 
