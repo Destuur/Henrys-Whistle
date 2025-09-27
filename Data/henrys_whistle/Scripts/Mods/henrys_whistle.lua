@@ -132,36 +132,27 @@ local function updateWhistleState()
     end
 end
 
-mod.On.MenuChanged = function(newConfig)
-    log:Info("Menu changed")
-
-    -- 1) Wenn kein newConfig übergeben, reset auf default
+mod.OnMenuChanged:Add(function(newConfig)
     if not newConfig then
         for key, value in pairs(defaultConfig) do
             mod.Config[key] = value
-            log:Info(" - " .. key .. ": reset to default = " .. tostring(value))
         end
     else
-        -- 2) newConfig anwenden, nur vorhandene Keys
         for _, cfg in ipairs(newConfig) do
             local key = cfg.id
             if cfg.valueMap then
                 local index = (cfg._selectedIndex or 0) + 1
                 mod.Config[key] = cfg.valueMap[index]
-                log:Info(" - " .. key .. ": mapped to " .. tostring(mod.Config[key]))
             elseif cfg.value ~= nil then
                 mod.Config[key] = cfg.value
-                log:Info(" - " .. key .. ": direct value = " .. tostring(cfg.value))
             end
-            -- Keys, die nicht in newConfig vorkommen, bleiben unverändert
         end
     end
 
-    log:Info("Config updated from menu")
     KCDUtils.Config.SaveAll(mod.Name, mod.Config)
     KCDUtils.Menu.BuildWithDB(mod)
     updateWhistleState()
-end
+end)
 
 mod.On.MountedStateChanged = function(data)
     isMounted = data.isMounted
